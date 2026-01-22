@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <script src="https://js.puter.com/v2/"></script>
+    <script src="https://cdn.jsdelivr.net/npm/comfy.js@latest/dist/comfy.min.js"></script>
+    <style>
+        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: transparent; font-family: sans-serif; overflow: hidden; }
+        #status { color: white; font-size: 24px; text-shadow: 2px 2px 5px black; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; display: none; }
+        #ai-image { max-width: 90%; border: 8px solid white; border-radius: 12px; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+    </style>
+</head>
+<body>
+    <div id="status">🎨 AI is thinking...</div>
+    <img id="ai-image" src="" />
+    <script>
+        const statusBox = document.getElementById('status');
+        const imgBox = document.getElementById('ai-image');
+
+        // REPLACE 'YourTwitchName' with your actual Twitch username
+        const channel = "Monstermind42o"; 
+
+        try {
+            ComfyJS.Init(channel);
+        } catch (e) {
+            console.error("Twitch Init Error", e);
+        }
+
+        ComfyJS.onCommand = async (user, command, message) => {
+            if (command === "imagine" && message) {
+                statusBox.style.display = "block";
+                imgBox.style.display = "none";
+                try {
+                    const result = await puter.ai.txt2img(message, { test_mode: true });
+                    imgBox.src = result.src;
+                    statusBox.style.display = "none";
+                    imgBox.style.display = "block";
+                    setTimeout(() => { imgBox.style.display = "none"; }, 30000);
+                } catch (err) {
+                    statusBox.innerText = "⚠️ AI Busy - Try again";
+                    setTimeout(() => { statusBox.style.display = "none"; }, 5000);
+                }
+            }
+        };
+    </script>
+</body>
+</html>
