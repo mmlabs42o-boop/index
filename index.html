@@ -2,114 +2,45 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AI Chat Overlay</title>
     <script src="https://js.puter.com/v2/"></script>
     <script src="https://cdn.jsdelivr.net/npm/comfy.js@latest/dist/comfy.min.js"></script>
     <style>
-        body { 
-            margin: 0; 
-            display: flex; 
-            flex-direction: column;
-            justify-content: center; 
-            align-items: center; 
-            height: 100vh; 
-            background: transparent; 
-            font-family: sans-serif;
-            overflow: hidden;
-            color: white;
-        }
-        #setup-screen {
-            text-align: center;
-            background: rgba(0,0,0,0.8);
-            padding: 30px;
-            border-radius: 15px;
-            border: 2px solid #6441a5;
-        }
-        button {
-            padding: 15px 30px;
-            font-size: 20px;
-            cursor: pointer;
-            background: #6441a5;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            margin-top: 15px;
-        }
-        button:hover { background: #7d5bbe; }
-        #status {
-            font-size: 24px;
-            text-shadow: 2px 2px 5px black;
-            background: rgba(0,0,0,0.6);
-            padding: 10px 20px;
-            border-radius: 8px;
-            display: none;
-        }
-        #ai-image {
-            max-width: 85%;
-            border: 10px solid white;
-            border-radius: 12px;
-            display: none;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
+        body { margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; background: transparent; font-family: sans-serif; overflow: hidden; color: white; }
+        #status { font-size: 24px; text-shadow: 2px 2px 5px black; background: rgba(0,0,0,0.6); padding: 10px 20px; border-radius: 8px; display: none; }
+        #ai-image { max-width: 85%; border: 10px solid white; border-radius: 12px; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
-
-    <div id="setup-screen">
-        <h2>AI Overlay Standby</h2>
-        <p>Click the button below to connect to Twitch and AI.</p>
-        <button id="start-btn">🚀 ACTIVATE OVERLAY</button>
-    </div>
-
-    <div id="status">🎨 AI is thinking...</div>
+    <div id="status">🎨 AI is painting...</div>
     <img id="ai-image" src="" />
 
     <script>
-        const setupScreen = document.getElementById('setup-screen');
-        const startBtn = document.getElementById('start-btn');
-        const statusBox = document.getElementById('status');
-        const imgBox = document.getElementById('ai-image');
-
-        // !!! CHANGE THIS TO YOUR TWITCH NAME !!!
-        const channelName = "Monstermind42o"; 
-
-        startBtn.onclick = async () => {
-            setupScreen.innerHTML = "<p>Connecting...</p>";
-            try {
-                // Force Auth
-                await puter.auth.signIn({ attempt_temp_user_creation: true });
-                
-                // Connect Twitch
-                ComfyJS.Init(channelName);
-                
-                // Hide Setup, Show Status briefly
-                setupScreen.style.display = "none";
-                statusBox.style.display = "block";
-                statusBox.innerText = `✅ Ready on ${channelName}`;
-                
-                setTimeout(() => { 
-                    statusBox.style.display = "none"; 
-                }, 5000);
-            } catch (err) {
-                setupScreen.innerHTML = `<p style="color:red">Error: ${err.message}</p><button onclick="location.reload()">Retry</button>`;
-            }
-        };
+        // REPLACE 'YourTwitchName' with your actual username
+        const channel = "Monstermind42o"; 
+        
+        // Start Twitch listening immediately
+        ComfyJS.Init(channel);
+        console.log("Listening for !imagine...");
 
         ComfyJS.onCommand = async (user, command, message) => {
             if (command === "imagine" && message) {
-                statusBox.innerText = "🎨 AI is painting...";
-                statusBox.style.display = "block";
-                imgBox.style.display = "none";
+                const status = document.getElementById('status');
+                const img = document.getElementById('ai-image');
+                
+                status.innerText = "🎨 AI is thinking...";
+                status.style.display = "block";
+                img.style.display = "none";
 
                 try {
+                    // test_mode: true skips the login/payment popup requirement
                     const result = await puter.ai.txt2img(message, { test_mode: true });
-                    imgBox.src = result.src;
-                    statusBox.style.display = "none";
-                    imgBox.style.display = "block";
-                    setTimeout(() => { imgBox.style.display = "none"; }, 30000);
+                    img.src = result.src;
+                    status.style.display = "none";
+                    img.style.display = "block";
+                    setTimeout(() => { img.style.display = "none"; }, 30000);
                 } catch (e) {
-                    statusBox.innerText = "❌ AI Busy";
-                    setTimeout(() => { statusBox.style.display = "none"; }, 5000);
+                    status.innerText = "❌ Connection error - Try again";
+                    setTimeout(() => { status.style.display = "none"; }, 5000);
                 }
             }
         };
