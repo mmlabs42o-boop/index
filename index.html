@@ -18,13 +18,31 @@
             overflow: hidden;
             color: white;
         }
+        #setup-screen {
+            text-align: center;
+            background: rgba(0,0,0,0.8);
+            padding: 30px;
+            border-radius: 15px;
+            border: 2px solid #6441a5;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 20px;
+            cursor: pointer;
+            background: #6441a5;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+        button:hover { background: #7d5bbe; }
         #status {
             font-size: 24px;
             text-shadow: 2px 2px 5px black;
             background: rgba(0,0,0,0.6);
             padding: 10px 20px;
             border-radius: 8px;
-            display: block;
+            display: none;
         }
         #ai-image {
             max-width: 85%;
@@ -33,56 +51,49 @@
             display: none;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
-        /* Button for the first-time setup click */
-        #start-btn {
-            padding: 15px 30px;
-            font-size: 20px;
-            cursor: pointer;
-            background: #6441a5;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            display: none;
-        }
     </style>
 </head>
 <body>
 
-    <button id="start-btn">Click to Authorize AI</button>
-    <div id="status">🔄 Initializing...</div>
+    <div id="setup-screen">
+        <h2>AI Overlay Standby</h2>
+        <p>Click the button below to connect to Twitch and AI.</p>
+        <button id="start-btn">🚀 ACTIVATE OVERLAY</button>
+    </div>
+
+    <div id="status">🎨 AI is thinking...</div>
     <img id="ai-image" src="" />
 
     <script>
+        const setupScreen = document.getElementById('setup-screen');
+        const startBtn = document.getElementById('start-btn');
         const statusBox = document.getElementById('status');
         const imgBox = document.getElementById('ai-image');
-        const startBtn = document.getElementById('start-btn');
 
-        // !!! REPLACE 'YourTwitchName' WITH YOUR ACTUAL TWITCH USERNAME !!!
+        // !!! CHANGE THIS TO YOUR TWITCH NAME !!!
         const channelName = "Monstermind42o"; 
 
-        async function init() {
-            // Check if we are already signed in
-            if (!puter.auth.isSignedIn()) {
-                statusBox.innerText = "⚠️ Authorization Required";
-                startBtn.style.display = "block";
+        startBtn.onclick = async () => {
+            setupScreen.innerHTML = "<p>Connecting...</p>";
+            try {
+                // Force Auth
+                await puter.auth.signIn({ attempt_temp_user_creation: true });
                 
-                startBtn.onclick = async () => {
-                    await puter.auth.signIn({ attempt_temp_user_creation: true });
-                    startBtn.style.display = "none";
-                    connectTwitch();
-                };
-            } else {
-                connectTwitch();
+                // Connect Twitch
+                ComfyJS.Init(channelName);
+                
+                // Hide Setup, Show Status briefly
+                setupScreen.style.display = "none";
+                statusBox.style.display = "block";
+                statusBox.innerText = `✅ Ready on ${channelName}`;
+                
+                setTimeout(() => { 
+                    statusBox.style.display = "none"; 
+                }, 5000);
+            } catch (err) {
+                setupScreen.innerHTML = `<p style="color:red">Error: ${err.message}</p><button onclick="location.reload()">Retry</button>`;
             }
-        }
-
-        function connectTwitch() {
-            ComfyJS.Init(channelName);
-            statusBox.innerText = `✅ Connected to ${channelName}!`;
-            setTimeout(() => { 
-                if (statusBox.innerText.includes("Connected")) statusBox.style.display = "none"; 
-            }, 5000);
-        }
+        };
 
         ComfyJS.onCommand = async (user, command, message) => {
             if (command === "imagine" && message) {
@@ -91,4 +102,17 @@
                 imgBox.style.display = "none";
 
                 try {
-                    // Use test_mode: true to ensure no credits are used and no popups appear
+                    const result = await puter.ai.txt2img(message, { test_mode: true });
+                    imgBox.src = result.src;
+                    statusBox.style.display = "none";
+                    imgBox.style.display = "block";
+                    setTimeout(() => { imgBox.style.display = "none"; }, 30000);
+                } catch (e) {
+                    statusBox.innerText = "❌ AI Busy";
+                    setTimeout(() => { statusBox.style.display = "none"; }, 5000);
+                }
+            }
+        };
+    </script>
+</body>
+</html>
