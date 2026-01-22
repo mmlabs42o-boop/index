@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AI Stream Overlay - Monstermind42o Timer</title>
+    <title>AI Stream Overlay - Monstermind42o Pure Horde</title>
     <script src="https://cdn.jsdelivr.net/npm/comfy.js@latest/dist/comfy.min.js"></script>
     <style>
         body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: transparent; font-family: 'Segoe UI', sans-serif; overflow: hidden; color: white; }
@@ -13,9 +13,8 @@
         #prompt-display { position: absolute; bottom: 60px; background: rgba(0, 0, 0, 0.8); padding: 15px 25px; border-radius: 50px; font-size: 20px; border: 2px solid #6441a5; transition: opacity 1s; opacity: 0; z-index: 20; text-align: center; max-width: 80%; }
         #prompt-display.show { opacity: 1; }
 
-        /* COUNTDOWN PROGRESS BAR */
-        #timer-container { position: absolute; bottom: 20px; width: 60%; height: 10px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; display: none; border: 1px solid rgba(255,255,255,0.3); }
-        #timer-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #00f2ff, #6441a5); transition: width 0.5s linear; }
+        #timer-container { position: absolute; bottom: 20px; width: 60%; height: 10px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; display: none; border: 1px solid rgba(255,255,255,0.3); z-index: 60; }
+        #timer-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #00f2ff, #6441a5); transition: width 0.3s ease; }
 
         #stats-panel { position: absolute; top: 20px; left: 20px; background: rgba(0, 0, 0, 0.75); padding: 10px 15px; border-radius: 10px; border-left: 4px solid #00f2ff; font-family: monospace; color: #00f2ff; z-index: 50; }
         #status { font-size: 22px; text-shadow: 2px 2px 5px black; background: rgba(0,0,0,0.7); padding: 10px 20px; border-radius: 8px; position: absolute; top: 20px; display: none; z-index: 100; text-transform: uppercase; }
@@ -54,15 +53,15 @@
         let isProcessing = false;
         let totalGens = 0;
         let totalKudos = 0;
-        let idleTimer;
+        let idleTimer = null;
 
         const dreamData = {
-            "Spooky": { subjects: ["haunted castle", "ghostly figure", "abandoned asylum", "dark forest"], details: ["foggy atmosphere", "moonlight", "blood red accents", "VHS glitch"] },
-            "Cyberpunk": { subjects: ["futuristic city", "cybernetic samurai", "neon street market", "high-tech lab"], details: ["neon lighting", "rainy pavement", "holograms", "synthwave vibes"] },
-            "Absurd": { subjects: ["flying toaster", "cat riding a giant pizza", "melting clock", "octopus playing chess"], details: ["surreal colors", "impossible physics", "vibrant dreamscape"] },
-            "Funny": { subjects: ["pug wearing a tuxedo", "banana on a surfboard", "squirrel with a lightsaber", "dino in a tutu"], details: ["bright colors", "comedic lighting", "cartoony expressions"] },
-            "Abstract": { subjects: ["geometric explosion", "liquid gold waves", "swirling galaxies", "digital fractals"], details: ["complex textures", "iridescent colors", "sharp focus"] },
-            "Cartoon": { subjects: ["magical dragon", "superhero hamster", "enchanted cottage", "alien explorer"], details: ["cel-shaded", "thick outlines", "vibrant style"] }
+            "Spooky": { subjects: ["haunted castle", "ghostly figure", "dark forest"], details: ["foggy atmosphere", "moonlight", "VHS glitch"] },
+            "Cyberpunk": { subjects: ["futuristic city", "cybernetic samurai", "neon market"], details: ["neon pink lighting", "rainy pavement", "synthwave vibes"] },
+            "Absurd": { subjects: ["flying toaster", "cat on a pizza", "melting clock"], details: ["surreal colors", "trippy patterns"] },
+            "Funny": { subjects: ["pug in a tux", "banana surfing", "dino in a tutu"], details: ["bright colors", "cartoony expressions"] },
+            "Abstract": { subjects: ["liquid gold", "swirling galaxies", "fractals"], details: ["iridescent", "sharp focus"] },
+            "Cartoon": { subjects: ["magical dragon", "superhero hamster", "alien explorer"], details: ["cel-shaded", "vibrant style"] }
         };
 
         ComfyJS.Init(channel);
@@ -78,83 +77,87 @@
             isProcessing = true;
             if(idleTimer) clearTimeout(idleTimer);
             
+            hideElements(); 
             const task = queue.shift();
-            await generateImage(task.prompt, task.user);
-
-            setTimeout(() => {
+            
+            try {
+                const success = await generateImage(task.prompt, task.user);
+                if (success) {
+                    await new Promise(r => setTimeout(r, displayTime));
+                }
+            } catch (e) {
+                console.error("Horde Error:", e);
+            } finally {
                 hideElements();
                 setTimeout(() => {
                     isProcessing = false;
                     if (queue.length > 0) processQueue();
                     else startIdleTimer();
                 }, 2000);
-            }, displayTime);
+            }
         }
 
         async function generateImage(prompt, user, isIdle = false) {
             status.style.display = "block";
             timerContainer.style.display = "block";
             timerBar.style.width = "0%";
-            status.innerText = isIdle ? `🎲 AI DREAMING: ${user}` : `🎲 Requesting Image: ${user}`;
+            status.innerText = isIdle ? `🎲 AI DREAM: ${user}` : `🎲 CMD: ${user}`;
 
-            try {
-                const response = await fetch("https://stablehorde.net/api/v2/generate/async", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json", "apikey": "0000000000" },
-                    body: JSON.stringify({
-                        prompt: prompt,
-                        params: { n: 1, steps: 20, width: 512, height: 512 },
-                        models: ["stable_diffusion"]
-                    })
-                });
-                const data = await response.json();
-                const uuid = data.id;
+            const response = await fetch("https://stablehorde.net/api/v2/generate/async", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "apikey": "0000000000" },
+                body: JSON.stringify({
+                    prompt: prompt,
+                    params: { n: 1, steps: 20, width: 512, height: 512 },
+                    models: ["stable_diffusion"]
+                })
+            });
+            const data = await response.json();
+            if(!data.id) return false;
 
-                let checkReady = false;
-                let attempts = 0;
-                const maxAttempts = 30;
-
-                while (!checkReady && attempts < maxAttempts) {
-                    const statusRes = await fetch(`https://stablehorde.net/api/v2/generate/status/${uuid}`);
-                    const statusData = await statusRes.json();
-                    
-                    if (statusData.done) {
-                        img.src = statusData.generations[0].img;
-                        totalGens++;
-                        totalKudos += Math.round(statusData.generations[0].kudos || 12);
-                        countUI.innerText = totalGens;
-                        kudosUI.innerText = totalKudos.toLocaleString();
-                        timerBar.style.width = "100%";
-                        checkReady = true;
-                    } else {
-                        // Update the progress bar based on estimated wait or attempts
-                        let progress = (attempts / maxAttempts) * 100;
-                        timerBar.style.width = `${progress}%`;
-                        status.innerText = `⏳ Processing: ${statusData.wait_time || "..."}s`;
-                        attempts++;
-                        await new Promise(r => setTimeout(r, 2000));
-                    }
+            let attempts = 0;
+            while (attempts < 60) { // Extended patience for Horde
+                const statusRes = await fetch(`https://stablehorde.net/api/v2/generate/status/${data.id}`);
+                const statusData = await statusRes.json();
+                
+                if (statusData.done && statusData.generations) {
+                    return await showFinalImage(statusData.generations[0].img, prompt, user, isIdle, statusData.generations[0].kudos);
+                } else {
+                    attempts++;
+                    timerBar.style.width = `${(attempts / 60) * 100}%`;
+                    status.innerText = `⏳ HORDE WORKING (${attempts}/60)...`;
+                    await new Promise(r => setTimeout(r, 2000));
                 }
-            } catch (err) {
-                img.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?seed=${Math.random()}&nologo=true`;
-                timerBar.style.width = "100%";
             }
+            return false;
+        }
 
+        function showFinalImage(url, prompt, user, isIdle, kudos) {
             return new Promise(resolve => {
+                img.src = url;
                 img.onload = () => {
                     status.style.display = "none";
                     timerContainer.style.display = "none";
                     promptBanner.innerText = isIdle ? `AI DREAM [${user}]: ${prompt}` : `${user}: "${prompt}"`;
+                    
+                    totalGens++;
+                    totalKudos += Math.round(kudos || 12);
+                    countUI.innerText = totalGens;
+                    kudosUI.innerText = totalKudos.toLocaleString();
+
                     img.classList.add('show');
                     promptBanner.classList.add('show');
-                    resolve();
+                    resolve(true);
                 };
+                img.onerror = () => resolve(false);
             });
         }
 
         function hideElements() {
             img.classList.remove('show');
             promptBanner.classList.remove('show');
+            status.style.display = "none";
+            timerContainer.style.display = "none";
         }
 
         function startIdleTimer() {
@@ -165,14 +168,21 @@
                     const category = keys[Math.floor(Math.random() * keys.length)];
                     const sub = dreamData[category].subjects[Math.floor(Math.random() * dreamData[category].subjects.length)];
                     const det = dreamData[category].details[Math.floor(Math.random() * dreamData[category].details.length)];
-                    // Removed "8k" and "Masterpiece"
                     const idlePrompt = `${sub}, ${det}, highly detailed, cinematic lighting`;
 
-                    generateImage(idlePrompt, category, true).then(() => {
-                        setTimeout(() => {
+                    isProcessing = true; 
+                    generateImage(idlePrompt, category, true).then((success) => {
+                        if (success) {
+                            setTimeout(() => {
+                                hideElements();
+                                isProcessing = false;
+                                startIdleTimer();
+                            }, displayTime);
+                        } else {
                             hideElements();
-                            setTimeout(startIdleTimer, 2000);
-                        }, displayTime);
+                            isProcessing = false;
+                            startIdleTimer();
+                        }
                     });
                 }
             }, idleDelay);
