@@ -1,47 +1,94 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
+    <title>AI Chat Overlay</title>
     <script src="https://js.puter.com/v2/"></script>
     <script src="https://cdn.jsdelivr.net/npm/comfy.js@latest/dist/comfy.min.js"></script>
     <style>
-        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: transparent; font-family: sans-serif; overflow: hidden; }
-        #status { color: white; font-size: 24px; text-shadow: 2px 2px 5px black; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; display: none; }
-        #ai-image { max-width: 90%; border: 8px solid white; border-radius: 12px; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        body { 
+            margin: 0; 
+            display: flex; 
+            flex-direction: column;
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            background: transparent; 
+            font-family: sans-serif;
+            overflow: hidden;
+            color: white;
+        }
+        #status {
+            font-size: 24px;
+            text-shadow: 2px 2px 5px black;
+            background: rgba(0,0,0,0.6);
+            padding: 10px 20px;
+            border-radius: 8px;
+            display: block;
+        }
+        #ai-image {
+            max-width: 85%;
+            border: 10px solid white;
+            border-radius: 12px;
+            display: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        /* Button for the first-time setup click */
+        #start-btn {
+            padding: 15px 30px;
+            font-size: 20px;
+            cursor: pointer;
+            background: #6441a5;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            display: none;
+        }
     </style>
 </head>
 <body>
-    <div id="status">🎨 AI is thinking...</div>
+
+    <button id="start-btn">Click to Authorize AI</button>
+    <div id="status">🔄 Initializing...</div>
     <img id="ai-image" src="" />
+
     <script>
         const statusBox = document.getElementById('status');
         const imgBox = document.getElementById('ai-image');
+        const startBtn = document.getElementById('start-btn');
 
-        // REPLACE 'YourTwitchName' with your actual Twitch username
-        const channel = "Monstermind42o"; 
+        // !!! REPLACE 'YourTwitchName' WITH YOUR ACTUAL TWITCH USERNAME !!!
+        const channelName = "Monstermind42o"; 
 
-        try {
-            ComfyJS.Init(channel);
-        } catch (e) {
-            console.error("Twitch Init Error", e);
+        async function init() {
+            // Check if we are already signed in
+            if (!puter.auth.isSignedIn()) {
+                statusBox.innerText = "⚠️ Authorization Required";
+                startBtn.style.display = "block";
+                
+                startBtn.onclick = async () => {
+                    await puter.auth.signIn({ attempt_temp_user_creation: true });
+                    startBtn.style.display = "none";
+                    connectTwitch();
+                };
+            } else {
+                connectTwitch();
+            }
+        }
+
+        function connectTwitch() {
+            ComfyJS.Init(channelName);
+            statusBox.innerText = `✅ Connected to ${channelName}!`;
+            setTimeout(() => { 
+                if (statusBox.innerText.includes("Connected")) statusBox.style.display = "none"; 
+            }, 5000);
         }
 
         ComfyJS.onCommand = async (user, command, message) => {
             if (command === "imagine" && message) {
+                statusBox.innerText = "🎨 AI is painting...";
                 statusBox.style.display = "block";
                 imgBox.style.display = "none";
+
                 try {
-                    const result = await puter.ai.txt2img(message, { test_mode: true });
-                    imgBox.src = result.src;
-                    statusBox.style.display = "none";
-                    imgBox.style.display = "block";
-                    setTimeout(() => { imgBox.style.display = "none"; }, 30000);
-                } catch (err) {
-                    statusBox.innerText = "⚠️ AI Busy - Try again";
-                    setTimeout(() => { statusBox.style.display = "none"; }, 5000);
-                }
-            }
-        };
-    </script>
-</body>
-</html>
+                    // Use test_mode: true to ensure no credits are used and no popups appear
