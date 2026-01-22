@@ -1,13 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
-    <script src="https://js.puter.com/v2/"></script>
     <script src="https://cdn.jsdelivr.net/npm/comfy.js@latest/dist/comfy.min.js"></script>
     <style>
-        body { margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; background: transparent; font-family: sans-serif; overflow: hidden; color: white; }
+        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: transparent; font-family: sans-serif; overflow: hidden; color: white; }
         #status { font-size: 24px; text-shadow: 2px 2px 5px black; background: rgba(0,0,0,0.6); padding: 10px 20px; border-radius: 8px; display: none; }
-        #ai-image { max-width: 85%; border: 10px solid white; border-radius: 12px; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        #ai-image { max-width: 90%; border: 8px solid white; border-radius: 12px; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
@@ -18,11 +17,9 @@
         // REPLACE 'YourTwitchName' with your actual username
         const channel = "Monstermind42o"; 
         
-        // Start Twitch listening immediately
         ComfyJS.Init(channel);
-        console.log("Listening for !imagine...");
 
-        ComfyJS.onCommand = async (user, command, message) => {
+        ComfyJS.onCommand = (user, command, message) => {
             if (command === "imagine" && message) {
                 const status = document.getElementById('status');
                 const img = document.getElementById('ai-image');
@@ -31,17 +28,24 @@
                 status.style.display = "block";
                 img.style.display = "none";
 
-                try {
-                    // test_mode: true skips the login/payment popup requirement
-                    const result = await puter.ai.txt2img(message, { test_mode: true });
-                    img.src = result.src;
+                // Generate a random seed to ensure a new image every time
+                const seed = Math.floor(Math.random() * 1000000);
+                const encodedPrompt = encodeURIComponent(message);
+                
+                // Use Pollinations.ai - No login, no popups, 100% free
+                const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?seed=${seed}&width=1024&height=1024&nologo=true`;
+
+                // Pre-load the image to show it only when ready
+                const tempImg = new Image();
+                tempImg.src = imageUrl;
+                tempImg.onload = () => {
+                    img.src = imageUrl;
                     status.style.display = "none";
                     img.style.display = "block";
+
+                    // Hide image after 30 seconds
                     setTimeout(() => { img.style.display = "none"; }, 30000);
-                } catch (e) {
-                    status.innerText = "❌ Connection error - Try again";
-                    setTimeout(() => { status.style.display = "none"; }, 5000);
-                }
+                };
             }
         };
     </script>
