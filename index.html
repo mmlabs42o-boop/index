@@ -5,35 +5,40 @@
     <title>AI Stream Overlay Master</title>
     <script src="https://cdn.jsdelivr.net/npm/comfy.js@latest/dist/comfy.min.js"></script>
     <style>
-        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: transparent; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; overflow: hidden; color: white; }
+        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: transparent; font-family: 'Segoe UI', sans-serif; overflow: hidden; color: white; }
         
-        /* FADE ANIMATION */
+        /* IMAGE & PROMPT FADES */
         #ai-image { 
-            max-width: 90%; 
-            max-height: 80vh;
-            border: 8px solid white; 
-            border-radius: 12px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
-            transition: opacity 1.5s ease-in-out; 
-            opacity: 0; 
+            max-width: 90%; max-height: 75vh; border: 8px solid white; border-radius: 12px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); transition: opacity 1.5s ease-in-out; opacity: 0; 
         }
         #ai-image.show { opacity: 1; }
 
-        /* HUD ELEMENTS */
-        #status { font-size: 24px; text-shadow: 2px 2px 5px black; background: rgba(0,0,0,0.7); padding: 10px 20px; border-radius: 8px; position: absolute; top: 20px; z-index: 10; display: none; }
-        #queue-counter { position: absolute; top: 20px; right: 20px; background: rgba(100, 65, 165, 0.9); padding: 10px 15px; border-radius: 8px; font-weight: bold; font-size: 18px; border: 2px solid white; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        #prompt-display {
+            position: absolute; bottom: 40px; background: rgba(0, 0, 0, 0.8); padding: 15px 25px; 
+            border-radius: 50px; font-size: 20px; max-width: 80%; text-align: center; 
+            border: 2px solid #6441a5; transition: opacity 1s; opacity: 0; z-index: 20;
+        }
+        #prompt-display.show { opacity: 1; }
 
-        /* THE WHEEL UI */
-        #wheel-container { position: absolute; display: none; flex-direction: column; align-items: center; z-index: 100; }
-        #wheel { width: 300px; height: 300px; border-radius: 50%; border: 8px solid #fff; position: relative; transition: transform 3s cubic-bezier(0.15, 0, 0.15, 1); background: conic-gradient(#ff4d4d 0deg 60deg, #4d94ff 60deg 120deg, #4dff88 120deg 180deg, #ffff4d 180deg 240deg, #ff4dff 240deg 300deg, #ffa31a 300deg 360deg); box-shadow: 0 0 50px rgba(0,0,0,0.5); }
+        /* WHEEL UI */
+        #wheel-container { position: absolute; display: none; flex-direction: column; align-items: center; z-index: 100; opacity: 0; transition: opacity 0.5s; }
+        #wheel { 
+            width: 300px; height: 300px; border-radius: 50%; border: 8px solid #fff; position: relative; 
+            /* This line handles the 3-second spin animation */
+            transition: transform 3s cubic-bezier(0.15, 0, 0.15, 1); 
+            background: conic-gradient(#ff4d4d 0deg 60deg, #4d94ff 60deg 120deg, #4dff88 120deg 180deg, #ffff4d 180deg 240deg, #ff4dff 240deg 300deg, #ffa31a 300deg 360deg); 
+        }
         #arrow { width: 0; height: 0; border-left: 20px solid transparent; border-right: 20px solid transparent; border-top: 30px solid white; position: absolute; top: -10px; z-index: 110; }
-        .label { position: absolute; width: 100%; height: 100%; text-align: center; font-weight: bold; font-size: 12px; text-transform: uppercase; padding-top: 25px; box-sizing: border-box; transform-origin: 50% 50%; color: black; }
+        .label { position: absolute; width: 100%; height: 100%; text-align: center; font-weight: bold; font-size: 12px; text-transform: uppercase; padding-top: 25px; transform-origin: 50% 50%; color: black; }
+
+        #status { font-size: 24px; text-shadow: 2px 2px 5px black; background: rgba(0,0,0,0.7); padding: 10px 20px; border-radius: 8px; position: absolute; top: 20px; z-index: 10; display: none; }
     </style>
 </head>
 <body>
 
     <div id="status">🔄 Initializing...</div>
-    <div id="queue-counter">Queue: 0</div>
+    <div id="prompt-display">Prompt...</div>
 
     <div id="wheel-container">
         <div id="arrow"></div>
@@ -45,30 +50,27 @@
             <div class="label" style="transform: rotate(270deg)">Abstract</div>
             <div class="label" style="transform: rotate(330deg)">Cartoon</div>
         </div>
-        <h2 id="wheel-result" style="text-shadow: 2px 2px 10px black; margin-top: 20px;">AI Idle Selection</h2>
+        <h2 style="text-shadow: 2px 2px 10px black; margin-top: 20px;">AI Idle Selection...</h2>
     </div>
 
     <img id="ai-image" src="" />
 
     <script>
-        // --- CONFIGURATION ---
-        const channel = "YourTwitchName"; // <--- CHANGE TO YOUR TWITCH USERNAME
-        const displayTime = 25000;      // How long image stays (25 seconds)
-        const idleDelay = 15000;        // Wait time after queue before Idle Wheel (15 seconds)
+        const channel = "YourTwitchName"; // CHANGE THIS
+        const displayTime = 25000;      
+        const idleDelay = 15000;        
 
         const status = document.getElementById('status');
         const img = document.getElementById('ai-image');
+        const promptBanner = document.getElementById('prompt-display');
         const wheelContainer = document.getElementById('wheel-container');
         const wheel = document.getElementById('wheel');
-        const queueUI = document.getElementById('queue-counter');
         
         let queue = [];
         let isProcessing = false;
         let idleTimer;
         let currentRotation = 0;
         const categories = ["Spooky", "Cute", "Absurd", "Funny", "Abstract", "Cartoon"];
-
-        // --- CONTENT FILTER ---
         const bannedWords = ["nude", "naked", "porn", "sex", "nsfw", "gore", "blood", "kill", "suicide", "murder", "dead", "faggot", "nigger", "kike", "retard", "tranny", "slut", "rape", "hentai", "racist", "hitler", "nazi", "terrorist", "bomb", "cocaine", "meth", "heroin"];
 
         ComfyJS.Init(channel);
@@ -76,48 +78,27 @@
         ComfyJS.onCommand = (user, command, message) => {
             if (command === "imagine" && message) {
                 const isClean = !bannedWords.some(word => message.toLowerCase().includes(word.toLowerCase()));
-                
-                if (!isClean) {
-                    showTemporaryStatus(`⚠️ Restricted Prompt, ${user}`);
-                    return; 
-                }
-
+                if (!isClean) { return; }
                 queue.push({ user, prompt: message });
-                updateQueueUI();
                 processQueue();
             }
         };
 
-        function showTemporaryStatus(text) {
-            status.innerText = text;
-            status.style.display = 'block';
-            setTimeout(() => { status.style.display = 'none'; }, 4000);
-        }
-
-        function updateQueueUI() {
-            if (queue.length > 0) {
-                queueUI.innerText = `Queue: ${queue.length}`;
-                queueUI.style.display = 'block';
-            } else {
-                queueUI.style.display = 'none';
-            }
-        }
-
         async function processQueue() {
             if (isProcessing || queue.length === 0) return;
             isProcessing = true;
-
             clearTimeout(idleTimer);
-            wheelContainer.style.display = 'none';
+            
+            // Immediately hide wheel if someone interrupts
+            wheelContainer.style.opacity = "0";
+            setTimeout(() => { wheelContainer.style.display = 'none'; }, 500);
 
             const currentTask = queue.shift();
-            updateQueueUI();
-            
             await displayImage(currentTask.prompt, currentTask.user);
 
-            // Wait for display time, then fade out, then check next in queue
             setTimeout(() => {
                 img.classList.remove('show'); 
+                promptBanner.classList.remove('show');
                 setTimeout(() => {
                     isProcessing = false;
                     if (queue.length > 0) {
@@ -125,18 +106,23 @@
                     } else {
                         idleTimer = setTimeout(startIdleMode, idleDelay); 
                     }
-                }, 1500);
+                }, 2000); // 2 second buffer for full fade out
             }, displayTime); 
         }
 
         async function startIdleMode() {
             if (queue.length > 0 || isProcessing) return;
-            img.classList.remove('show');
-            wheelContainer.style.display = 'flex';
             
-            currentRotation += (1800 + Math.floor(Math.random() * 360)); 
+            // 1. Show the container first
+            wheelContainer.style.display = 'flex';
+            // Small delay to allow display:flex to register before changing opacity
+            setTimeout(() => { wheelContainer.style.opacity = "1"; }, 50);
+
+            // 2. Add multiple full spins to the current rotation
+            currentRotation += (1440 + Math.floor(Math.random() * 360)); 
             wheel.style.transform = `rotate(${currentRotation}deg)`;
 
+            // 3. Wait for the 3-second spin to finish
             setTimeout(async () => {
                 const sliceIndex = Math.floor(((360 - (currentRotation % 360)) % 360) / 60);
                 const category = categories[sliceIndex];
@@ -144,19 +130,22 @@
                 try {
                     const response = await fetch(`https://text.pollinations.ai/create%20a%20random%20${category}%20visual%20image%20prompt%20under%2015%20words`);
                     const aiPrompt = await response.text();
-                    wheelContainer.style.display = 'none';
-                    displayImage(aiPrompt, "AI Dream");
+                    
+                    // Hide wheel before showing image
+                    wheelContainer.style.opacity = "0";
+                    setTimeout(() => { 
+                        wheelContainer.style.display = 'none'; 
+                        displayImage(aiPrompt, "AI Dream");
+                    }, 500);
+
                     idleTimer = setTimeout(startIdleMode, 60000);
                 } catch(e) {
                     idleTimer = setTimeout(startIdleMode, 5000);
                 }
-            }, 3500);
+            }, 3500); // Wait slightly longer than the 3s transition
         }
 
         async function displayImage(promptText, userName) {
-            status.style.display = "block";
-            status.innerText = `🎨 Painting for ${userName}...`;
-            
             const seed = Math.floor(Math.random() * 1000000);
             const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(promptText)}?seed=${seed}&width=1024&height=1024&nologo=true`;
 
@@ -165,15 +154,15 @@
                 tempImg.src = url;
                 tempImg.onload = () => {
                     img.src = url;
-                    status.style.display = "none";
+                    promptBanner.innerText = `"${promptText}"`;
                     img.classList.add('show');
+                    promptBanner.classList.add('show');
                     resolve();
                 };
             });
         }
 
-        // Initialize first run
-        setTimeout(startIdleMode, 2000);
+        setTimeout(startIdleMode, 3000);
     </script>
 </body>
 </html>
