@@ -2,22 +2,16 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AI Stream Overlay - Monstermind42o Clean</title>
+    <title>AI Stream Overlay - Dynamic Monstermind42o</title>
     <script src="https://cdn.jsdelivr.net/npm/comfy.js@latest/dist/comfy.min.js"></script>
     <style>
         body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: transparent; font-family: 'Segoe UI', sans-serif; overflow: hidden; color: white; }
-        
-        /* IMAGE STYLING */
         #ai-image { max-width: 90%; max-height: 75vh; border: 8px solid white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transition: opacity 1.5s; opacity: 0; }
         #ai-image.show { opacity: 1; }
-
-        /* PROMPT BANNER */
         #prompt-display { position: absolute; bottom: 40px; background: rgba(0, 0, 0, 0.8); padding: 15px 25px; border-radius: 50px; font-size: 20px; border: 2px solid #6441a5; transition: opacity 1s; opacity: 0; z-index: 20; text-align: center; max-width: 80%; }
         #prompt-display.show { opacity: 1; }
-
-        /* HUD & STATUS */
         #stats-panel { position: absolute; top: 20px; left: 20px; background: rgba(0, 0, 0, 0.75); padding: 10px 15px; border-radius: 10px; border-left: 4px solid #00f2ff; font-family: monospace; color: #00f2ff; z-index: 50; }
-        #status { font-size: 22px; text-shadow: 2px 2px 5px black; background: rgba(0,0,0,0.7); padding: 10px 20px; border-radius: 8px; position: absolute; top: 20px; display: none; z-index: 100; text-transform: uppercase; letter-spacing: 1px; }
+        #status { font-size: 22px; text-shadow: 2px 2px 5px black; background: rgba(0,0,0,0.7); padding: 10px 20px; border-radius: 8px; position: absolute; top: 20px; display: none; z-index: 100; text-transform: uppercase; }
     </style>
 </head>
 <body>
@@ -29,13 +23,12 @@
 
     <div id="status">🔄 Initializing...</div>
     <div id="prompt-display">Prompt...</div>
-
     <img id="ai-image" src="" />
 
     <script>
         const channel = "Monstermind42o"; 
-        const displayTime = 25000; // How long image stays on screen
-        const idleDelay = 10000;  // Delay before next idle gen
+        const displayTime = 25000; 
+        const idleDelay = 10000;  
         
         const img = document.getElementById('ai-image');
         const status = document.getElementById('status');
@@ -48,10 +41,36 @@
         let totalGens = 0;
         let totalKudos = 0;
         let idleTimer;
-        const categories = ["Spooky", "Cyberpunk", "Absurd", "Funny", "Abstract", "Cartoon"];
+
+        // THE RANDOM PROMPT ENGINE DATA
+        const dreamData = {
+            "Spooky": {
+                subjects: ["haunted castle", "ghostly figure", "abandoned asylum", "dark forest", "creepy doll"],
+                details: ["foggy atmosphere", "moonlight", "blood red accents", "eerie shadows", "VHS glitch effect"]
+            },
+            "Cyberpunk": {
+                subjects: ["futuristic city", "cybernetic samurai", "neon street market", "high-tech lab", "flying car"],
+                details: ["neon blue and pink lighting", "rainy pavement", "holograms", "volumetric fog", "synthwave vibes"]
+            },
+            "Absurd": {
+                subjects: ["flying toaster", "cat riding a giant pizza", "melting clock in a desert", "octopus playing chess"],
+                details: ["surreal colors", "impossible physics", "vibrant dreamscape", "trippy patterns"]
+            },
+            "Funny": {
+                subjects: ["pug wearing a tuxedo", "banana on a surfboard", "squirrel with a tiny lightsaber", "dinosaur in a tutu"],
+                details: ["bright colors", "comedic lighting", "cartoony expressions", "hilarious concept"]
+            },
+            "Abstract": {
+                subjects: ["geometric explosion", "liquid gold waves", "swirling galaxies", "digital fractals"],
+                details: ["complex textures", "iridescent colors", "sharp focus", "artstation style"]
+            },
+            "Cartoon": {
+                subjects: ["magical dragon", "superhero hamster", "enchanted cottage", "alien space explorer"],
+                details: ["cel-shaded", "thick outlines", "vibrant Disney style", "playful lighting"]
+            }
+        };
 
         ComfyJS.Init(channel);
-
         ComfyJS.onCommand = (user, command, message) => {
             if (command === "imagine" && message) {
                 queue.push({ user, prompt: message });
@@ -104,18 +123,15 @@
                         img.src = statusData.generations[0].img;
                         totalGens++;
                         totalKudos += Math.round(statusData.generations[0].kudos || 12);
-                        updateStats();
+                        countUI.innerText = totalGens;
+                        kudosUI.innerText = totalKudos.toLocaleString();
                         checkReady = true;
                     } else {
-                        status.innerText = isIdle ? `⏳ Dreaming (${user})...` : `⏳ Queue: ${statusData.wait_time || "..."}s`;
-                        attempts++;
                         await new Promise(r => setTimeout(r, 2000));
+                        attempts++;
                     }
                 }
-                if(!checkReady) throw new Error("Horde Timeout");
-
             } catch (err) {
-                // Fallback to Pollinations
                 img.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?seed=${Math.random()}&nologo=true`;
             }
 
@@ -135,20 +151,20 @@
             promptBanner.classList.remove('show');
         }
 
-        function updateStats() {
-            countUI.innerText = totalGens;
-            kudosUI.innerText = totalKudos.toLocaleString();
-        }
-
         function startIdleTimer() {
             if(idleTimer) clearTimeout(idleTimer);
             idleTimer = setTimeout(() => {
                 if (queue.length === 0 && !isProcessing) {
-                    const category = categories[Math.floor(Math.random() * categories.length)];
-                    const idlePrompt = `A high quality ${category} masterpiece, cinematic lighting, 8k`;
-                    // We pass the category as the 'user' for the idle display logic
+                    // PICK RANDOM CATEGORY
+                    const keys = Object.keys(dreamData);
+                    const category = keys[Math.floor(Math.random() * keys.length)];
+                    
+                    // BUILD RANDOM PROMPT
+                    const sub = dreamData[category].subjects[Math.floor(Math.random() * dreamData[category].subjects.length)];
+                    const det = dreamData[category].details[Math.floor(Math.random() * dreamData[category].details.length)];
+                    const idlePrompt = `A high quality ${sub}, ${det}, trending on artstation, masterpiece, 8k`;
+
                     generateImage(idlePrompt, category, true).then(() => {
-                        // After showing an idle image, wait displayTime then go back to waiting
                         setTimeout(() => {
                             hideElements();
                             setTimeout(startIdleTimer, 2000);
@@ -158,7 +174,6 @@
             }, idleDelay);
         }
 
-        // Start initial cycle
         startIdleTimer();
     </script>
 </body>
